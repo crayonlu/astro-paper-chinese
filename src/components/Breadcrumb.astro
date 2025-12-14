@@ -6,20 +6,54 @@ const currentUrlPath = Astro.url.pathname.replace(/\/+$/, "");
 // eg: /tags/tailwindcss => ['tags', 'tailwindcss']
 const breadcrumbList = currentUrlPath.split("/").slice(1);
 
+// Path to Chinese translation mapping
+const pathTranslations: Record<string, string> = {
+  tags: "标签",
+  posts: "文章",
+  archives: "归档",
+  search: "搜索",
+  about: "关于",
+};
+
+// Create breadcrumb items with original path and translated text
+interface BreadcrumbItem {
+  original: string;
+  text: string;
+  href: string;
+}
+
+let breadcrumbItems: BreadcrumbItem[] = breadcrumbList.map((segment, index) => {
+  const translated = pathTranslations[segment.toLowerCase()] || segment;
+  // Build href from all segments up to current index
+  const href = "/" + breadcrumbList.slice(0, index + 1).join("/") + "/";
+  return {
+    original: segment,
+    text: translated,
+    href: href,
+  };
+});
+
 // if breadcrumb is Home > Posts > 1 <etc>
 // replace Posts with Posts (page number)
 if (breadcrumbList[0] === "posts") {
-  breadcrumbList.splice(0, 2, `Posts (page ${breadcrumbList[1] || 1})`);
+  const pageNum = breadcrumbList[1] || "1";
+  breadcrumbItems.splice(0, 2, {
+    original: breadcrumbList[0],
+    text: `文章 (第 ${pageNum} 页)`,
+    href: `/posts/${pageNum}/`,
+  });
 }
 
 // if breadcrumb is Home > Tags > [tag] > [page] <etc>
 // replace [tag] > [page] with [tag] (page number)
 if (breadcrumbList[0] === "tags" && !isNaN(Number(breadcrumbList[2]))) {
-  breadcrumbList.splice(
-    1,
-    3,
-    `${breadcrumbList[1]} ${Number(breadcrumbList[2]) === 1 ? "" : "(page " + breadcrumbList[2] + ")"}`
-  );
+  const tag = breadcrumbList[1];
+  const pageNum = breadcrumbList[2];
+  breadcrumbItems.splice(1, 3, {
+    original: tag,
+    text: `${tag} ${Number(pageNum) === 1 ? "" : "(第 " + pageNum + " 页)"}`,
+    href: `/tags/${tag}/${pageNum}/`,
+  });
 }
 ---
 
@@ -28,25 +62,25 @@ if (breadcrumbList[0] === "tags" && !isNaN(Number(breadcrumbList[2]))) {
     class="font-light [&>li]:inline [&>li:not(:last-child)>a]:hover:opacity-100"
   >
     <li>
-      <a href="/" class="opacity-80">Home</a>
+      <a href="/" class="opacity-80">首页</a>
       <span aria-hidden="true" class="opacity-80">&raquo;</span>
     </li>
     {
-      breadcrumbList.map((breadcrumb, index) =>
-        index + 1 === breadcrumbList.length ? (
+      breadcrumbItems.map((item, index) =>
+        index + 1 === breadcrumbItems.length ? (
           <li>
             <span
               class:list={["capitalize opacity-75", { lowercase: index > 0 }]}
               aria-current="page"
             >
               {/* make the last part lowercase in Home > Tags > some-tag */}
-              {decodeURIComponent(breadcrumb)}
+              {decodeURIComponent(item.text)}
             </span>
           </li>
         ) : (
           <li>
-            <a href={`/${breadcrumb}/`} class="capitalize opacity-70">
-              {breadcrumb}
+            <a href={item.href} class="capitalize opacity-70">
+              {item.text}
             </a>
             <span aria-hidden="true">&raquo;</span>
           </li>
